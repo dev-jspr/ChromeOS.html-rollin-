@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ChromeOS.html Rollin’</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top left, #e3f2fd, #bbdefb, #90caf9);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #desktop {
+            position: absolute;
+            inset: 0;
+        }
+
+        /* Shelf */
+        #shelf {
+            position: absolute;
+            left: 50%;
+            bottom: 12px;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(12px);
+        }
+
+        .shelf-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #42a5f5, #1e88e5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .shelf-icon span {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .shelf-icon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Window */
+        .window {
+            position: absolute;
+            width: 640px;
+            height: 380px;
+            background: rgba(250, 250, 250, 0.96);
+            border-radius: 14px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+        }
+
+        .window-titlebar {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            background: linear-gradient(90deg, #e3f2fd, #bbdefb);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            cursor: grab;
+        }
+
+        .window-titlebar span {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e3a5f;
+        }
+
+        .window-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .window-btn {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .window-btn.close {
+            background: #ef5350;
+        }
+
+        .window-content {
+            flex: 1;
+            background: #111;
+            color: #e0e0e0;
+            font-family: "JetBrains Mono", "Fira Code", monospace;
+            font-size: 13px;
+            padding: 8px;
+            overflow: auto;
+        }
+
+        /* Status bar */
+        #status-bar {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #1e3a5f;
+        }
+
+        #status-bar .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #66bb6a;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="desktop"></div>
+
+    <div id="status-bar">
+        <div class="dot"></div>
+        <span id="status-time"></span>
+        <span>Guest</span>
+    </div>
+
+    <div id="shelf">
+        <div class="shelf-icon" id="open-terminal">
+            <span>></span>
+        </div>
+        <div class="shelf-icon" id="open-browser">
+            <span>🌐</span>
+        </div>
+    </div>
+
+    <!-- Terminal window -->
+    <div class="window" id="terminal-window" style="left: 80px; top: 80px;">
+        <div class="window-titlebar" id="terminal-titlebar">
+            <span>Terminal — ChromeOS.html Rollin’</span>
+            <div class="window-buttons">
+                <button class="window-btn close" id="terminal-close"></button>
+            </div>
+        </div>
+        <div class="window-content" id="terminal-content"></div>
+    </div>
+
+    <!-- WORKING v86 CDN -->
+    <script src="https://v86.js.org/v86.js"></script>
+
+    <script>
+        // Time
+        function updateTime() {
+            const el = document.getElementById("status-time");
+            const now = new Date();
+            el.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+        updateTime();
+        setInterval(updateTime, 30000);
+
+        // Dragging windows
+        function makeDraggable(win, bar) {
+            let dragging = false, offsetX = 0, offsetY = 0;
+
+            bar.addEventListener("mousedown", (e) => {
+                dragging = true;
+                const rect = win.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                bar.style.cursor = "grabbing";
+            });
+
+            document.addEventListener("mousemove", (e) => {
+                if (!dragging) return;
+                win.style.left = (e.clientX - offsetX) + "px";
+                win.style.top = (e.clientY - offsetY) + "px";
+            });
+
+            document.addEventListener("mouseup", () => {
+                dragging = false;
+                bar.style.cursor = "grab";
+            });
+        }
+
+        const terminalWindow = document.getElementById("terminal-window");
+        const terminalTitlebar = document.getElementById("terminal-titlebar");
+        const terminalContent = document.getElementById("terminal-content");
+        const terminalClose = document.getElementById("terminal-close");
+        const openTerminalBtn = document.getElementById("open-terminal");
+
+        makeDraggable(terminalWindow, terminalTitlebar);
+
+        let emulatorStarted = false;
+
+        function startEmulator() {
+            if (emulatorStarted) return;
+            emulatorStarted = true;
+
+            terminalContent.textContent = "Booting Arch Linux (32-bit)...\n\n";
+
+            const emulator = new V86Starter({
+                wasm_path: "https://v86.js.org/v86.wasm",
+                cdrom: {
+                    url: "https://copy.sh/v86/images/archlinux.iso"
+                },
+                serial_container: terminalContent
+            });
+        }
+
+        openTerminalBtn.addEventListener("click", () => {
+            terminalWindow.style.display = "flex";
+            startEmulator();
+        });
+
+        terminalClose.addEventListener("click", () => {
+            terminalWindow.style.display = "none";
+        });
+
+        // Browser icon
+        document.getElementById("open-browser").addEventListener("click", () => {
+            window.open("https://www.bing.com", "_blank");
+        });
+    </script>
+
+</body>
+</html>
